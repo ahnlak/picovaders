@@ -20,8 +20,5 @@ To build, you will need to tell CMake where to find the
 (where `<picosystem directory>` is wherever you cloned the SDK into)
 
 ```
-  __                        _              
- (_  |_   _. ._ _    ()    |_ ._  o  _     
- __) | | (_| | (/_   (_X   |_ | | | (_) \/ 
-                                 _|     /  
+Share & Enjoy
 ```
