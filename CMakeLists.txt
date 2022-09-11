@@ -26,11 +26,20 @@ find_package(PICOSYSTEM REQUIRED)
 # Define the source files we build from
 picosystem_executable(picovaders
   picovaders.cpp
+  assets/spritesheet.cpp
+  state/splash.cpp state/title.cpp
 )
+
+# Some further compiler-oriented configurations
+target_include_directories(picovaders PUBLIC .)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  target_compile_definitions(picovaders PRIVATE DEBUG=1)
+endif()
 
 # Set some Pico version info
 pico_set_program_name(picovaders "PicoVaders")
 pico_set_program_version(picovaders "v0.1.0")
 
-no_spritesheet(picovaders)
-#disable_startup_logo(picovaders)
+#pixel_double(picovaders)
+#no_spritesheet(picovaders)
+disable_startup_logo(picovaders)
