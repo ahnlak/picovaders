@@ -23,6 +23,14 @@
 
 typedef enum
 {
+  INVADER_NONE,
+  INVADER1,
+  INVADER2,
+  INVADER3
+} invader_t;
+
+typedef enum
+{
   /* First row. */
   SPRITE_INVADER1 = 0,
   SPRITE_INVADER2 = 2, 

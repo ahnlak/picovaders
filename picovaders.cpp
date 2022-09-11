@@ -15,6 +15,7 @@
 
 #include "picosystem.hpp"
 #include "picovaders.hpp"
+#include "state/game.hpp"
 #include "state/splash.hpp"
 #include "state/title.hpp"
 #include "assets/spritesheet.hpp"
@@ -84,6 +85,9 @@ void update( uint32_t p_tick )
         break;
       case GAMESTATE_TITLE:
         m_current_state = new TitleState();
+        break;
+      case GAMESTATE_GAME:
+        m_current_state = new GameState();
         break;
     }
   }

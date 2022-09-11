@@ -36,6 +36,7 @@ TitleState::TitleState( void )
   /* And set the timer to zero. */
   this->m_time_ms = 0;
   this->m_last_tick = 0;
+  this->m_tick_count = 0;
 
   /* And the invader offset (we'll let them drift left and right) */
   this->m_invader_offset = 20;
@@ -83,11 +84,12 @@ gamestate_t TitleState::update( uint32_t p_delta )
   {
     /* Mark this tick. */
     this->m_last_tick = this->m_time_ms;
+    this->m_tick_count++;
 
     /* And move the offset. */
     if ( this->m_invader_ltor )
     {
-      if ( this->m_invader_offset >= 40 )
+      if ( this->m_invader_offset >= 44 )
       {
         this->m_invader_ltor = false;
         this->m_invader_offset -= 2;
@@ -114,7 +116,7 @@ gamestate_t TitleState::update( uint32_t p_delta )
   /* Check to see if the player has pressed X, in order to start the game. */
   if ( picosystem::pressed( picosystem::X ) )
   {
-    return GAMESTATE_SPLASH;
+    return GAMESTATE_GAME;
   }
 
   /* By default, stay in this state. */
@@ -128,8 +130,9 @@ gamestate_t TitleState::update( uint32_t p_delta )
 
 void TitleState::draw( void )
 {
-  int32_t l_width, l_height;
-  uint8_t l_alpha;
+  int32_t   l_width, l_height;
+  uint32_t  l_invader1, l_invader2;
+  uint8_t   l_alpha;
 
   /* Clear the screen every time... */
   picosystem::pen( 0, 0, 0 );
@@ -142,12 +145,23 @@ void TitleState::draw( void )
                     (SCREEN_HEIGHT - SPRITE_TITLE_H) / 2 );
 
   /* Draw some ... invaders! */
+  if ( this->m_tick_count % 2 )
+  {
+    l_invader1 = SPRITE_INVADER1;
+    l_invader2 = SPRITE_INVADER2;
+  }
+  else
+  {
+    l_invader1 = SPRITE_INVADER1_ALT;
+    l_invader2 = SPRITE_INVADER2_ALT;
+  }
+
   for ( int i = 0; i < 10; i++ )
   {
-    picosystem::sprite( SPRITE_INVADER1, (i*20) + this->m_invader_offset, 40 );
-    picosystem::sprite( SPRITE_INVADER1+1, (i*20) + this->m_invader_offset + 8, 40 );
-    picosystem::sprite( SPRITE_INVADER2, (i*20) + this->m_invader_offset, 60 );
-    picosystem::sprite( SPRITE_INVADER2+1, (i*20) + this->m_invader_offset + 8, 60 );
+    picosystem::sprite( l_invader1, (i*20) + this->m_invader_offset, 40 );
+    picosystem::sprite( l_invader1+1, (i*20) + this->m_invader_offset + 8, 40 );
+    picosystem::sprite( l_invader2, (i*20) + this->m_invader_offset, 60 );
+    picosystem::sprite( l_invader2+1, (i*20) + this->m_invader_offset + 8, 60 );
   }
 
   /* And prompt the player to start. */

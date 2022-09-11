@@ -27,7 +27,7 @@ find_package(PICOSYSTEM REQUIRED)
 picosystem_executable(picovaders
   picovaders.cpp
   assets/spritesheet.cpp
-  state/splash.cpp state/title.cpp
+  state/game.cpp state/splash.cpp state/title.cpp
 )
 
 # Some further compiler-oriented configurations
