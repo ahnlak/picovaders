@@ -18,8 +18,9 @@
 
 #include "picosystem.hpp"
 #include "picovaders.hpp"
-#include "state/title.hpp"
 #include "assets/spritesheet.hpp"
+#include "state/title.hpp"
+#include "utils/text.hpp"
 
 
 /* Functions. */
@@ -42,6 +43,9 @@ TitleState::TitleState( void )
   this->m_invader_offset = 20;
   this->m_invader_ltor = true;
 
+  /* Create the prompt text. */
+  this->m_prompt = new ScalableText( "PRESS X TO START", 1.5f );
+
   /* All done. */
   return;
 }
@@ -53,6 +57,13 @@ TitleState::TitleState( void )
 
 TitleState::~TitleState()
 {
+  /* Clean up the prompt, if it was assigned. */
+  if ( this->m_prompt != nullptr )
+  {
+    delete this->m_prompt;
+    this->m_prompt = nullptr;
+  }
+
   /* All done. */
   return;
 }
@@ -167,8 +178,7 @@ void TitleState::draw( void )
   /* And prompt the player to start. */
   l_alpha = 5 + abs(((this->m_time_ms/50)%20)-10);
   picosystem::pen( 10, 15, 15, l_alpha );
-  picosystem::measure( "PRESS X TO START", l_width, l_height );
-  picosystem::text( "PRESS X TO START", (SCREEN_WIDTH - l_width) / 2, 180 );
+  this->m_prompt->draw( ( SCREEN_WIDTH - this->m_prompt->get_width() ) / 2, 180 );
 
   /* And a little advertising... */
   picosystem::pen( 15, 8, 15, 10 );

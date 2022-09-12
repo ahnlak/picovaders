@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include "utils/text.hpp"
+
 class TitleState : public GameStateInterface
 {
 private:
@@ -19,6 +21,7 @@ private:
   uint_fast32_t   m_tick_count;
   uint_fast8_t    m_invader_offset;
   bool            m_invader_ltor;
+  ScalableText   *m_prompt = nullptr;
 
 public:
                   TitleState( void );

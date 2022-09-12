@@ -43,6 +43,11 @@ GameState::GameState( void )
   this->m_invader_descent = 20;
   this->m_invader_ltor = true;
 
+  /* Position the player roughly in the middle. */
+  this->m_player_base_loc.x = ( SCREEN_WIDTH - PLAYER_WIDTH ) / 2;
+  this->m_player_base_loc.y = 220;
+  this->m_player_firing = false;
+
   /* Do the initial level load. */
   this->load_level();
 
@@ -195,10 +200,33 @@ gamestate_t GameState::update( uint32_t p_delta )
     }
   }
 
-  /* Check to see if the player has pressed X, in order to start the game. */
-  if ( picosystem::pressed( picosystem::X ) )
+  /* Check player inputs; pretty much left, right and shoot here! */
+  if ( picosystem::button( picosystem::LEFT ) )
   {
-    return GAMESTATE_SPLASH;
+    /* Simply move within screen boundaries. */
+    if ( this->m_player_base_loc.x > 0 )
+    {
+      this->m_player_base_loc.x--;
+    }
+  }
+  if ( picosystem::button( picosystem::RIGHT ) )
+  {
+    /* Simply move within screen boundaries. */
+    if ( this->m_player_base_loc.x < ( SCREEN_WIDTH - PLAYER_WIDTH ) )
+    {
+      this->m_player_base_loc.x++;
+    }
+  }
+
+  /* Check to see if the player has fired, and hasn't already got one flying. */
+  if ( picosystem::pressed( picosystem::X ) && ( !this->m_player_firing ) )
+  {
+    /* Work out the location of the bullet. */
+    this->m_player_bullet_loc.x = this->m_player_base_loc.x + PLAYER_LASER;
+    this->m_player_bullet_loc.y = this->m_player_base_loc.y;
+
+    /* And set it flying. */
+    this->m_player_firing = true;
   }
 
   /* By default, stay in this state. */
@@ -217,6 +245,7 @@ void GameState::draw( void )
   uint32_t      l_invader1, l_invader2, l_invader3;
   uint_fast8_t  l_row, l_column;
   int32_t       l_invader_x, l_invader_y;
+  int32_t       l_bullet;
 
   /* Clear the screen every time... */
   picosystem::pen( 0, 0, 0 );
@@ -228,12 +257,14 @@ void GameState::draw( void )
     l_invader1 = SPRITE_INVADER1;
     l_invader2 = SPRITE_INVADER2;
     l_invader3 = SPRITE_INVADER3;
+    l_bullet = SPRITE_BULLET;
   }
   else
   {
     l_invader1 = SPRITE_INVADER1_ALT;
     l_invader2 = SPRITE_INVADER2_ALT;
     l_invader3 = SPRITE_INVADER3_ALT;
+    l_bullet = SPRITE_BULLET_ALT;
   }
 
   for( l_row = 0; l_row < SHEET_HEIGHT; l_row++ )
@@ -261,7 +292,17 @@ void GameState::draw( void )
           break;
       }
     }
-  }  
+  }
+
+  /* Also, draw the player. */
+  picosystem::sprite( SPRITE_BASE, this->m_player_base_loc.x, m_player_base_loc.y );
+  picosystem::sprite( SPRITE_BASE+1, this->m_player_base_loc.x+8, m_player_base_loc.y );
+
+  /* Player bullet, if there is one. */
+  if ( this->m_player_firing )
+  {
+    picosystem::sprite( l_bullet, this->m_player_bullet_loc.x, this->m_player_bullet_loc.y );
+  }
 
   /* DEBUG - superimpose the state name on the buffer. */
 #ifdef DEBUG

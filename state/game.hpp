@@ -13,6 +13,8 @@
 
 #define SHEET_WIDTH   10
 #define SHEET_HEIGHT  5
+#define PLAYER_WIDTH  15
+#define PLAYER_LASER  4
 
 class GameState : public GameStateInterface
 {
@@ -24,6 +26,10 @@ private:
   uint_fast8_t    m_invader_descent;
   bool            m_invader_ltor;
   uint_fast8_t    m_invaders[SHEET_HEIGHT][SHEET_WIDTH];
+
+  coord_t         m_player_base_loc;
+  coord_t         m_player_bullet_loc;
+  bool            m_player_firing;
 
   void            load_level( void );
 

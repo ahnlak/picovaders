@@ -28,6 +28,7 @@ picosystem_executable(picovaders
   picovaders.cpp
   assets/spritesheet.cpp
   state/game.cpp state/splash.cpp state/title.cpp
+  utils/text.cpp
 )
 
 # Some further compiler-oriented configurations

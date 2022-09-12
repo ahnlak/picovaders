@@ -71,6 +71,12 @@ typedef enum
 
 /* Structures. */
 
+struct coord_t
+{
+  uint_fast8_t x;
+  uint_fast8_t y;
+};
+
 
 /* Interfaces. */
 
