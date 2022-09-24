@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include "utils/tick.hpp"
+
 #define SHEET_WIDTH   10
 #define SHEET_HEIGHT  5
 #define PLAYER_WIDTH  15
@@ -19,19 +21,21 @@
 class GameState : public GameStateInterface
 {
 private:
-  uint_fast32_t   m_last_tick;
-  uint_fast32_t   m_tick_count;
   uint_fast32_t   m_time_ms;
   int_fast16_t    m_invader_offset;
   uint_fast8_t    m_invader_descent;
   bool            m_invader_ltor;
   uint_fast8_t    m_invaders[SHEET_HEIGHT][SHEET_WIDTH];
+  TickCounter    *m_invader_tick;
+  TickCounter    *m_base_tick;
 
   coord_t         m_player_base_loc;
   coord_t         m_player_bullet_loc;
   bool            m_player_firing;
 
   void            load_level( void );
+
+  void            update_player( void );
 
 public:
                   GameState( void );

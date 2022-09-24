@@ -21,6 +21,7 @@
 #include "assets/spritesheet.hpp"
 #include "state/title.hpp"
 #include "utils/text.hpp"
+#include "utils/tick.hpp"
 
 
 /* Functions. */
@@ -36,8 +37,9 @@ TitleState::TitleState( void )
 
   /* And set the timer to zero. */
   this->m_time_ms = 0;
-  this->m_last_tick = 0;
-  this->m_tick_count = 0;
+
+  /* Intialise the various tickers. */
+  this->m_invader_tick = new TickCounter( 300 );
 
   /* And the invader offset (we'll let them drift left and right) */
   this->m_invader_offset = 20;
@@ -57,6 +59,13 @@ TitleState::TitleState( void )
 
 TitleState::~TitleState()
 {
+  /* Clean up the tickers. */
+  if ( this->m_invader_tick != nullptr )
+  {
+    delete this->m_invader_tick;
+    this->m_invader_tick = nullptr;
+  }
+
   /* Clean up the prompt, if it was assigned. */
   if ( this->m_prompt != nullptr )
   {
@@ -88,15 +97,14 @@ gamestate_t TitleState::update( uint32_t p_delta )
   else
   {
     this->m_time_ms += p_delta;
+
+    /* And also our tickers. */
+    this->m_invader_tick->add_delta( p_delta );
   }
 
   /* The invaders will drift left and right, as a fairly leisurely pace. */
-  if ( (this->m_time_ms - this->m_last_tick) > 300 )
+  while( this->m_invader_tick->ticked() )
   {
-    /* Mark this tick. */
-    this->m_last_tick = this->m_time_ms;
-    this->m_tick_count++;
-
     /* And move the offset. */
     if ( this->m_invader_ltor )
     {
@@ -156,7 +164,7 @@ void TitleState::draw( void )
                     (SCREEN_HEIGHT - SPRITE_TITLE_H) / 2 );
 
   /* Draw some ... invaders! */
-  if ( this->m_tick_count % 2 )
+  if ( this->m_invader_tick->get_count() % 2 )
   {
     l_invader1 = SPRITE_INVADER1;
     l_invader2 = SPRITE_INVADER2;

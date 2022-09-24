@@ -12,16 +12,17 @@
 #pragma once
 
 #include "utils/text.hpp"
+#include "utils/tick.hpp"
 
 class TitleState : public GameStateInterface
 {
 private:
-  uint_fast32_t   m_last_tick;
   uint_fast32_t   m_time_ms;
-  uint_fast32_t   m_tick_count;
   uint_fast8_t    m_invader_offset;
   bool            m_invader_ltor;
   ScalableText   *m_prompt = nullptr;
+  TickCounter    *m_invader_tick;
+
 
 public:
                   TitleState( void );

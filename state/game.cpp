@@ -18,8 +18,9 @@
 
 #include "picosystem.hpp"
 #include "picovaders.hpp"
-#include "state/game.hpp"
 #include "assets/spritesheet.hpp"
+#include "state/game.hpp"
+#include "utils/tick.hpp"
 
 
 /* Functions. */
@@ -35,8 +36,10 @@ GameState::GameState( void )
 
   /* And set the timer to zero. */
   this->m_time_ms = 0;
-  this->m_last_tick = 0;
-  this->m_tick_count = 0;
+
+  /* Intialise the various tickers. */
+  this->m_invader_tick = new TickCounter( 400 );
+  this->m_base_tick = new TickCounter( 20 );
 
   /* And the invader offset (we'll let them drift left and right) */
   this->m_invader_offset = 20;
@@ -62,6 +65,18 @@ GameState::GameState( void )
 
 GameState::~GameState()
 {
+  /* Clean up the tickers. */
+  if ( this->m_invader_tick != nullptr )
+  {
+    delete this->m_invader_tick;
+    this->m_invader_tick = nullptr;
+  }
+  if ( this->m_base_tick != nullptr )
+  {
+    delete this->m_base_tick;
+    this->m_base_tick = nullptr;
+  }
+
   /* All done. */
   return;
 }
@@ -95,6 +110,48 @@ void GameState::load_level( void )
 
 
 /*
+ * update_player - runs all the player updates for a tick; basically check the
+ *                 user inputs and issue appropriate commands.
+ */
+
+void GameState::update_player( void )
+{
+  /* So, if the user wants to go left (and can), move them. */
+  if ( picosystem::button( picosystem::LEFT ) )
+  {
+    /* Simply move within screen boundaries. */
+    if ( this->m_player_base_loc.x > 0 )
+    {
+      this->m_player_base_loc.x--;
+    }
+  }
+
+  /* Also right. */
+  if ( picosystem::button( picosystem::RIGHT ) )
+  {
+    /* Simply move within screen boundaries. */
+    if ( this->m_player_base_loc.x < ( SCREEN_WIDTH - PLAYER_WIDTH ) )
+    {
+      this->m_player_base_loc.x++;
+    }
+  }
+
+  /* Check to see if the player has fired, and hasn't already got one flying. */
+  if ( picosystem::pressed( picosystem::X ) && ( !this->m_player_firing ) )
+  {
+    /* Work out the location of the bullet. */
+    this->m_player_bullet_loc.x = this->m_player_base_loc.x + PLAYER_LASER;
+    this->m_player_bullet_loc.y = this->m_player_base_loc.y;
+
+    /* And set it flying. */
+    this->m_player_firing = true;
+  }
+
+  /* All done. */
+}
+
+
+/*
  * update - called every frame to update the state; passed a delta indicating
  *          the ms since the last time we were called, and can be used for
  *          pacing.
@@ -117,7 +174,12 @@ gamestate_t GameState::update( uint32_t p_delta )
   }
   else
   {
+    /* Update our internal time count. */
     this->m_time_ms += p_delta;
+
+    /* And also our tickers. */
+    this->m_invader_tick->add_delta( p_delta );
+    this->m_base_tick->add_delta( p_delta );
   }
 
   /* First order of the day, move any bullets and bombs in flight. */
@@ -167,12 +229,8 @@ gamestate_t GameState::update( uint32_t p_delta )
   }
 
   /* The invaders will drift left and right, as a fairly leisurely pace. */
-  if ( (this->m_time_ms - this->m_last_tick) > l_tick_length )
+  while( this->m_invader_tick->ticked() )
   {
-    /* Mark this tick. */
-    this->m_last_tick = this->m_time_ms;
-    this->m_tick_count++;
-
     /* And move the offset. */
     if ( this->m_invader_ltor )
     {
@@ -200,33 +258,10 @@ gamestate_t GameState::update( uint32_t p_delta )
     }
   }
 
-  /* Check player inputs; pretty much left, right and shoot here! */
-  if ( picosystem::button( picosystem::LEFT ) )
+  /* Handle the player. */
+  while( this->m_base_tick->ticked() )
   {
-    /* Simply move within screen boundaries. */
-    if ( this->m_player_base_loc.x > 0 )
-    {
-      this->m_player_base_loc.x--;
-    }
-  }
-  if ( picosystem::button( picosystem::RIGHT ) )
-  {
-    /* Simply move within screen boundaries. */
-    if ( this->m_player_base_loc.x < ( SCREEN_WIDTH - PLAYER_WIDTH ) )
-    {
-      this->m_player_base_loc.x++;
-    }
-  }
-
-  /* Check to see if the player has fired, and hasn't already got one flying. */
-  if ( picosystem::pressed( picosystem::X ) && ( !this->m_player_firing ) )
-  {
-    /* Work out the location of the bullet. */
-    this->m_player_bullet_loc.x = this->m_player_base_loc.x + PLAYER_LASER;
-    this->m_player_bullet_loc.y = this->m_player_base_loc.y;
-
-    /* And set it flying. */
-    this->m_player_firing = true;
+    this->update_player();
   }
 
   /* By default, stay in this state. */
@@ -252,7 +287,7 @@ void GameState::draw( void )
   picosystem::clear();
 
   /* Draw some ... invaders! */
-  if ( this->m_tick_count % 2 )
+  if ( this->m_invader_tick->get_count() % 2 )
   {
     l_invader1 = SPRITE_INVADER1;
     l_invader2 = SPRITE_INVADER2;
