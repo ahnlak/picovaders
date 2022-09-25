@@ -28,6 +28,7 @@ private:
   uint_fast8_t    m_invaders[SHEET_HEIGHT][SHEET_WIDTH];
   TickCounter    *m_invader_tick;
   TickCounter    *m_base_tick;
+  TickCounter    *m_bullet_tick;
 
   coord_t         m_player_base_loc;
   coord_t         m_player_bullet_loc;
@@ -36,6 +37,7 @@ private:
   void            load_level( void );
 
   void            update_player( void );
+  void            move_invaders( int_fast16_t );
 
 public:
                   GameState( void );

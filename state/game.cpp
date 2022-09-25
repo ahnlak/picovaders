@@ -40,6 +40,7 @@ GameState::GameState( void )
   /* Intialise the various tickers. */
   this->m_invader_tick = new TickCounter( 400 );
   this->m_base_tick = new TickCounter( 20 );
+  this->m_bullet_tick = new TickCounter( 10 );
 
   /* And the invader offset (we'll let them drift left and right) */
   this->m_invader_offset = 20;
@@ -148,8 +149,45 @@ void GameState::update_player( void )
   }
 
   /* All done. */
+  return;
 }
 
+
+/*
+ * move_invaders - the invaders drift aimless left and right...
+ */
+
+void GameState::move_invaders( int_fast16_t p_offset_limit )
+{
+  /* Move the offset toward the limit, in the appropriate direction. */
+  if ( this->m_invader_ltor )
+  {
+    if ( this->m_invader_offset >= p_offset_limit )
+    {
+      this->m_invader_ltor = false;
+      this->m_invader_offset -= 2;
+    }
+    else
+    {
+      this->m_invader_offset += 2;
+    }
+  }
+  else
+  {
+    if ( this->m_invader_offset == p_offset_limit )
+    {
+      this->m_invader_ltor = true;
+      this->m_invader_offset += 2;
+    }
+    else
+    {
+      this->m_invader_offset -= 2;
+    }
+  }
+
+  /* All done. */
+  return;
+}
 
 /*
  * update - called every frame to update the state; passed a delta indicating
@@ -180,9 +218,24 @@ gamestate_t GameState::update( uint32_t p_delta )
     /* And also our tickers. */
     this->m_invader_tick->add_delta( p_delta );
     this->m_base_tick->add_delta( p_delta );
+    this->m_bullet_tick->add_delta( p_delta );
   }
 
   /* First order of the day, move any bullets and bombs in flight. */
+  while( this->m_bullet_tick->ticked() )
+  {
+    /* We only have something to do if the player has fired. */
+    if ( !this->m_player_firing )
+    {
+      continue;
+    }
+
+    /* Then we just move the bullet upwards. */
+    if ( --this->m_player_bullet_loc.y == 0 )
+    {
+      this->m_player_firing = false;
+    }
+  }
 
   /* Scan the sheet, to work out both how many invaders remain, and the  */
   /* first and last occupied columns, which determines turn points.      */
@@ -218,6 +271,7 @@ gamestate_t GameState::update( uint32_t p_delta )
   }
 
   /* And now we can derive the tick rate and limits from this, and move them. */
+  /* __RETURN__ need to base this on first/last columns. */
   l_tick_length = 150 + l_invader_count;
   if ( this->m_invader_ltor )
   {
@@ -231,31 +285,7 @@ gamestate_t GameState::update( uint32_t p_delta )
   /* The invaders will drift left and right, as a fairly leisurely pace. */
   while( this->m_invader_tick->ticked() )
   {
-    /* And move the offset. */
-    if ( this->m_invader_ltor )
-    {
-      if ( this->m_invader_offset >= l_offset_limit )
-      {
-        this->m_invader_ltor = false;
-        this->m_invader_offset -= 2;
-      }
-      else
-      {
-        this->m_invader_offset += 2;
-      }
-    }
-    else
-    {
-      if ( this->m_invader_offset == l_offset_limit )
-      {
-        this->m_invader_ltor = true;
-        this->m_invader_offset += 2;
-      }
-      else
-      {
-        this->m_invader_offset -= 2;
-      }
-    }
+    this->move_invaders( l_offset_limit );
   }
 
   /* Handle the player. */
@@ -286,22 +316,29 @@ void GameState::draw( void )
   picosystem::pen( 0, 0, 0 );
   picosystem::clear();
 
-  /* Draw some ... invaders! */
+  /* Select the right animation frames, based on the relevant tick. */
   if ( this->m_invader_tick->get_count() % 2 )
   {
     l_invader1 = SPRITE_INVADER1;
     l_invader2 = SPRITE_INVADER2;
     l_invader3 = SPRITE_INVADER3;
-    l_bullet = SPRITE_BULLET;
   }
   else
   {
     l_invader1 = SPRITE_INVADER1_ALT;
     l_invader2 = SPRITE_INVADER2_ALT;
     l_invader3 = SPRITE_INVADER3_ALT;
+  }
+  if ( this->m_bullet_tick->get_count() % 2 )
+  {
+    l_bullet = SPRITE_BULLET;
+  }
+  else
+  {
     l_bullet = SPRITE_BULLET_ALT;
   }
 
+  /* Draw some ... invaders! */
   for( l_row = 0; l_row < SHEET_HEIGHT; l_row++ )
   {
     for( l_column = 0; l_column < SHEET_WIDTH; l_column++ )
