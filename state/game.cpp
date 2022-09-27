@@ -42,11 +42,6 @@ GameState::GameState( void )
   this->m_base_tick = new TickCounter( 20 );
   this->m_bullet_tick = new TickCounter( 10 );
 
-  /* And the invader offset (we'll let them drift left and right) */
-  this->m_invader_offset = 20;
-  this->m_invader_descent = 20;
-  this->m_invader_ltor = true;
-
   /* Position the player roughly in the middle. */
   this->m_player_base_loc.x = ( SCREEN_WIDTH - PLAYER_WIDTH ) / 2;
   this->m_player_base_loc.y = 220;
@@ -107,6 +102,55 @@ void GameState::load_level( void )
       this->m_invaders[l_row][l_index] = INVADER1;
     }  
   }
+
+  /* And the invader offset (we'll let them drift left and right) */
+  this->m_invader_offset = 0;
+  this->m_invader_descent = 20;
+  this->m_invader_ltor = true;
+}
+
+
+/*
+ * get_invader_location - converts an invader x/y position in the sheet, to screen
+ *                        co-ordinates. Useful both for rendering and collision
+ *                        detection.
+ *
+ * YES I KNOW THESE TWO FUNCTIONS ARE CONFUSINGLY SIMILARLY NAMED, BUT THE DO
+ * A CONFUSINGLY SIMILAR JOB!
+ */
+
+coord_t GameState::get_invader_location( uint_fast8_t p_column, uint_fast8_t p_row )
+{
+  coord_t l_location;
+
+  /* Fairly simple sum, but helps to only do it one place! */
+  l_location.x = ( p_column * 20 ) + this->m_invader_offset;
+  l_location.y = ( p_row * 20 ) + this->m_invader_descent;
+
+  /* All done. */
+  return l_location;
+}
+
+
+/*
+ * get_invader_position - converts an invader's screen co-ordinates to the position
+ *                        in the sheet. Useful both for rendering and collision
+ *                        detection.
+ *
+ * YES I KNOW THESE TWO FUNCTIONS ARE CONFUSINGLY SIMILARLY NAMED, BUT THE DO
+ * A CONFUSINGLY SIMILAR JOB!
+ */
+
+coord_t GameState::get_invader_position( uint_fast8_t p_x, uint_fast8_t p_y )
+{
+  coord_t l_position;
+
+  /* Fairly simple sum, but helps to only do it one place! */
+  l_position.x = ( p_x - this->m_invader_offset ) / 20;
+  l_position.y = ( p_y - this->m_invader_descent ) / 20;
+
+  /* All done. */
+  return l_position;
 }
 
 
@@ -154,10 +198,58 @@ void GameState::update_player( void )
 
 
 /*
- * move_invaders - the invaders drift aimless left and right...
+ * update_bullet - moves the player bullet, checks to see if it's collided
+ *                 with anything and deal with it.
  */
 
-void GameState::move_invaders( int_fast16_t p_offset_limit )
+void GameState::update_bullet( void )
+{
+  /* We only have something to do if the player has fired. */
+  if ( !this->m_player_firing )
+  {
+    return;
+  }
+
+  /* Then we just move the bullet upwards. */
+  if ( --this->m_player_bullet_loc.y == 0 )
+  {
+    this->m_player_firing = false;
+  }
+
+  /* And then do some collision detection. Urgh. */
+  coord_t l_invader_coord = this->get_invader_position( 
+                              this->m_player_bullet_loc.x + 3, 
+                              this->m_player_bullet_loc.y + 3
+                            );
+
+  /* Sanity check that this falls within the sheet - the bullet starts below.. */
+  if ( ( l_invader_coord.y >= SHEET_HEIGHT ) || 
+       ( l_invader_coord.x >= SHEET_WIDTH ) )
+  {
+    return;
+  }
+
+  switch( this->m_invaders[l_invader_coord.y][l_invader_coord.x] )
+  {
+    /* Type one invaders are big, and simplest. */
+    case INVADER1:
+    case INVADER2:
+    case INVADER3:
+      this->m_invaders[l_invader_coord.y][l_invader_coord.x] = INVADER_NONE;
+      this->m_player_firing = false;
+      break;
+  }
+
+  /* All done. */
+  return;
+}
+
+
+/*
+ * update_invaders - the invaders drift aimless left and right...
+ */
+
+void GameState::update_invaders( int_fast16_t p_offset_limit )
 {
   /* Move the offset toward the limit, in the appropriate direction. */
   if ( this->m_invader_ltor )
@@ -166,6 +258,7 @@ void GameState::move_invaders( int_fast16_t p_offset_limit )
     {
       this->m_invader_ltor = false;
       this->m_invader_offset -= 2;
+      this->m_invader_descent += 10;
     }
     else
     {
@@ -174,10 +267,11 @@ void GameState::move_invaders( int_fast16_t p_offset_limit )
   }
   else
   {
-    if ( this->m_invader_offset == p_offset_limit )
+    if ( this->m_invader_offset <= p_offset_limit )
     {
       this->m_invader_ltor = true;
       this->m_invader_offset += 2;
+      this->m_invader_descent += 10;
     }
     else
     {
@@ -201,7 +295,6 @@ gamestate_t GameState::update( uint32_t p_delta )
 {
   uint_fast8_t  l_first_column, l_last_column, l_invader_count;
   uint_fast8_t  l_row, l_column;
-  uint_fast16_t l_tick_length;
   int_fast16_t  l_offset_limit;
 
   /* Keep track of the passage of time. Note that the first delta may be */
@@ -224,17 +317,7 @@ gamestate_t GameState::update( uint32_t p_delta )
   /* First order of the day, move any bullets and bombs in flight. */
   while( this->m_bullet_tick->ticked() )
   {
-    /* We only have something to do if the player has fired. */
-    if ( !this->m_player_firing )
-    {
-      continue;
-    }
-
-    /* Then we just move the bullet upwards. */
-    if ( --this->m_player_bullet_loc.y == 0 )
-    {
-      this->m_player_firing = false;
-    }
+    this->update_bullet();
   }
 
   /* Scan the sheet, to work out both how many invaders remain, and the  */
@@ -272,20 +355,20 @@ gamestate_t GameState::update( uint32_t p_delta )
 
   /* And now we can derive the tick rate and limits from this, and move them. */
   /* __RETURN__ need to base this on first/last columns. */
-  l_tick_length = 150 + l_invader_count;
+  this->m_invader_tick->set_frequency( 10 + (l_invader_count*7) );
   if ( this->m_invader_ltor )
   {
-    l_offset_limit = 44;
+    l_offset_limit = 220 - ( l_last_column * 20 );
   }
   else
   {
-    l_offset_limit = 0;
+    l_offset_limit = 0 - ( l_first_column * 20 );
   }
 
   /* The invaders will drift left and right, as a fairly leisurely pace. */
   while( this->m_invader_tick->ticked() )
   {
-    this->move_invaders( l_offset_limit );
+    this->update_invaders( l_offset_limit );
   }
 
   /* Handle the player. */
@@ -310,6 +393,7 @@ void GameState::draw( void )
   uint32_t      l_invader1, l_invader2, l_invader3;
   uint_fast8_t  l_row, l_column;
   int32_t       l_invader_x, l_invader_y;
+  coord_t       l_invader_loc;
   int32_t       l_bullet;
 
   /* Clear the screen every time... */
@@ -344,23 +428,22 @@ void GameState::draw( void )
     for( l_column = 0; l_column < SHEET_WIDTH; l_column++ )
     {
       /* Work out the co-ordinates. */
-      l_invader_x = ( l_column * 20 ) + this->m_invader_offset;
-      l_invader_y = ( l_row * 20 ) + this->m_invader_descent;
+      l_invader_loc = this->get_invader_location( l_column, l_row );
 
       /* And render the right thing. */
       switch( this->m_invaders[l_row][l_column] )
       {
         case INVADER1:
-          picosystem::sprite( l_invader1, l_invader_x, l_invader_y );
-          picosystem::sprite( l_invader1+1, l_invader_x+8, l_invader_y );
+          picosystem::sprite( l_invader1, l_invader_loc.x, l_invader_loc.y );
+          picosystem::sprite( l_invader1+1, l_invader_loc.x+8, l_invader_loc.y );
           break;
         case INVADER2:
-          picosystem::sprite( l_invader2, l_invader_x, l_invader_y );
-          picosystem::sprite( l_invader2+1, l_invader_x+8, l_invader_y );
+          picosystem::sprite( l_invader2, l_invader_loc.x, l_invader_loc.y );
+          picosystem::sprite( l_invader2+1, l_invader_loc.x+8, l_invader_loc.y );
           break;
         case INVADER3:
-          picosystem::sprite( l_invader3, l_invader_x, l_invader_y );
-          picosystem::sprite( l_invader3+1, l_invader_x+8, l_invader_y );
+          picosystem::sprite( l_invader3, l_invader_loc.x, l_invader_loc.y );
+          picosystem::sprite( l_invader3+1, l_invader_loc.x+8, l_invader_loc.y );
           break;
       }
     }
@@ -378,7 +461,7 @@ void GameState::draw( void )
 
   /* DEBUG - superimpose the state name on the buffer. */
 #ifdef DEBUG
-  this->ident( "GAME" );
+//  this->ident( "GAME" );
 #endif
 
   /* All done. */

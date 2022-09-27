@@ -35,9 +35,12 @@ private:
   bool            m_player_firing;
 
   void            load_level( void );
+  coord_t         get_invader_location( uint_fast8_t, uint_fast8_t );
+  coord_t         get_invader_position( uint_fast8_t, uint_fast8_t );
 
   void            update_player( void );
-  void            move_invaders( int_fast16_t );
+  void            update_bullet( void );
+  void            update_invaders( int_fast16_t );
 
 public:
                   GameState( void );
