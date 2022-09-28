@@ -14,6 +14,7 @@
 
 /* System headers. */
 
+
 /* Local headers. */
 
 #include "picosystem.hpp"
@@ -41,11 +42,13 @@ GameState::GameState( void )
   this->m_invader_tick = new TickCounter( 400 );
   this->m_base_tick = new TickCounter( 20 );
   this->m_bullet_tick = new TickCounter( 10 );
+  this->m_explosion_tick = new TickCounter( 100 );
 
   /* Position the player roughly in the middle. */
   this->m_player_base_loc.x = ( SCREEN_WIDTH - PLAYER_WIDTH ) / 2;
   this->m_player_base_loc.y = 220;
   this->m_player_firing = false;
+  this->m_score = 0;
 
   /* Do the initial level load. */
   this->load_level();
@@ -71,6 +74,16 @@ GameState::~GameState()
   {
     delete this->m_base_tick;
     this->m_base_tick = nullptr;
+  }
+  if ( this->m_bullet_tick != nullptr )
+  {
+    delete this->m_bullet_tick;
+    this->m_bullet_tick = nullptr;
+  }
+  if ( this->m_explosion_tick != nullptr )
+  {
+    delete this->m_explosion_tick;
+    this->m_explosion_tick = nullptr;
   }
 
   /* All done. */
@@ -107,6 +120,12 @@ void GameState::load_level( void )
   this->m_invader_offset = 0;
   this->m_invader_descent = 20;
   this->m_invader_ltor = true;
+
+  /* Make sure there aren't lingering explosions. */
+  for( l_index = 0; l_index < MAX_EXPLOSIONS; l_index++ )
+  {
+    this->m_explosion_list[l_index].sprite = 0;
+  }
 }
 
 
@@ -182,7 +201,7 @@ void GameState::update_player( void )
   }
 
   /* Check to see if the player has fired, and hasn't already got one flying. */
-  if ( picosystem::pressed( picosystem::X ) && ( !this->m_player_firing ) )
+  if ( picosystem::button( picosystem::A ) && ( !this->m_player_firing ) )
   {
     /* Work out the location of the bullet. */
     this->m_player_bullet_loc.x = this->m_player_base_loc.x + PLAYER_LASER;
@@ -204,6 +223,8 @@ void GameState::update_player( void )
 
 void GameState::update_bullet( void )
 {
+  coord_t l_invader_loc, l_sheet_coord;
+
   /* We only have something to do if the player has fired. */
   if ( !this->m_player_firing )
   {
@@ -216,27 +237,32 @@ void GameState::update_bullet( void )
     this->m_player_firing = false;
   }
 
-  /* And then do some collision detection. Urgh. */
-  coord_t l_invader_coord = this->get_invader_position( 
-                              this->m_player_bullet_loc.x + 3, 
-                              this->m_player_bullet_loc.y + 3
-                            );
+  /* And then do some collision detection. Urgh. Work out what invader is at */
+  /* the leading point of the bullet location.                               */
+  l_sheet_coord = this->get_invader_position( this->m_player_bullet_loc.x + 3, this->m_player_bullet_loc.y + 3 );
 
   /* Sanity check that this falls within the sheet - the bullet starts below.. */
-  if ( ( l_invader_coord.y >= SHEET_HEIGHT ) || 
-       ( l_invader_coord.x >= SHEET_WIDTH ) )
+  if ( ( l_sheet_coord.y >= SHEET_HEIGHT ) || 
+       ( l_sheet_coord.x >= SHEET_WIDTH ) )
   {
     return;
   }
 
-  switch( this->m_invaders[l_invader_coord.y][l_invader_coord.x] )
+  /* And then work out the screen co-ordinates of said invader (go with me...) */
+  l_invader_loc = this->get_invader_location( l_sheet_coord.x, l_sheet_coord.y );
+
+  /* Process the type of invader we hit then. */
+  switch( this->m_invaders[l_sheet_coord.y][l_sheet_coord.x] )
   {
     /* Type one invaders are big, and simplest. */
     case INVADER1:
     case INVADER2:
     case INVADER3:
-      this->m_invaders[l_invader_coord.y][l_invader_coord.x] = INVADER_NONE;
+
+      this->add_explosion( l_invader_loc.x, l_invader_loc.y, SPRITE_BIG_BOOM, true );
+      this->m_invaders[l_sheet_coord.y][l_sheet_coord.x] = INVADER_NONE;
       this->m_player_firing = false;
+      this->m_score += 10;
       break;
   }
 
@@ -246,11 +272,93 @@ void GameState::update_bullet( void )
 
 
 /*
+ * add_explosion - adds an explosion to our internal list. If we can't find
+ *                 any space, it just gets quietly dropped. We will... never
+ *                 run out of space. Hopefully.
+ */
+
+void GameState::add_explosion( uint_fast8_t p_x, uint_fast8_t p_y, uint_fast8_t p_sprite, bool p_wide )
+{
+  uint_fast8_t l_index;
+
+  /* Run through the array, looking for a gap. */
+  for( l_index = 0; l_index < MAX_EXPLOSIONS; l_index++ )
+  {
+    /* Empty slots are marked with a zero sprite value. */
+    if ( this->m_explosion_list[l_index].sprite == 0 )
+    {
+      /* Fill in the details, and we're done. */
+      this->m_explosion_list[l_index].x = p_x;
+      this->m_explosion_list[l_index].y = p_y;
+      this->m_explosion_list[l_index].sprite = p_sprite;
+      this->m_explosion_list[l_index].wide = p_wide;
+      break;
+    }
+  }
+
+  /* All done. */
+  return;
+}
+
+
+/*
+ * update_explosions - go through the explosion list, move the frames forward
+ *                     and remove any that finish.
+ */
+
+void GameState::update_explosions( void )
+{
+  uint_fast8_t l_index;
+
+  /* Run through the array, looking for explosions. */
+  for( l_index = 0; l_index < MAX_EXPLOSIONS; l_index++ )
+  {
+    switch( this->m_explosion_list[l_index].sprite )
+    {
+      case SPRITE_BIG_BOOM:                /* Move on to the next frame. */
+        this->m_explosion_list[l_index].sprite = SPRITE_BIG_BOOM_ALT;
+        break;
+      case SPRITE_BIG_BOOM_ALT:           /* Final step in the sequence. */
+        this->m_explosion_list[l_index].sprite = 0;
+        break;
+      default:                                         /* Nothing to do .*/
+        break;
+    }
+  }
+
+  /* All done. */
+  return;
+}
+
+/*
  * update_invaders - the invaders drift aimless left and right...
  */
 
 void GameState::update_invaders( int_fast16_t p_offset_limit )
 {
+  uint_fast8_t  l_row, l_column;
+
+  /* Scan the sheet, and handle any exploding invaders. */
+  for( l_row = 0; l_row < SHEET_HEIGHT; l_row++ )
+  {
+    for( l_column = 0; l_column < SHEET_WIDTH; l_column++ )
+    {
+      /* If it's exploding, move it through the sequence. */
+      if( this->m_invaders[l_row][l_column] == INVADER_BOOM2 )
+      {
+        this->m_invaders[l_row][l_column] = INVADER_NONE;
+      }
+      if( this->m_invaders[l_row][l_column] == INVADER_BOOM1 )
+      {
+        this->m_invaders[l_row][l_column] = INVADER_BOOM2;
+      }
+      if( this->m_invaders[l_row][l_column] == INVADER_HIT )
+      {
+        this->m_invaders[l_row][l_column] = INVADER_BOOM1;
+      }
+    }
+  }
+
   /* Move the offset toward the limit, in the appropriate direction. */
   if ( this->m_invader_ltor )
   {
@@ -312,9 +420,17 @@ gamestate_t GameState::update( uint32_t p_delta )
     this->m_invader_tick->add_delta( p_delta );
     this->m_base_tick->add_delta( p_delta );
     this->m_bullet_tick->add_delta( p_delta );
+    this->m_explosion_tick->add_delta( p_delta );
   }
 
-  /* First order of the day, move any bullets and bombs in flight. */
+  /* Update any active explosions; we do this first, so any new explosions */
+  /* triggered in this tick don't get immediately updated.                 */
+  while( this->m_explosion_tick->ticked() )
+  {
+    this->update_explosions();
+  }
+
+  /* Next order of the day, move any bullets and bombs in flight. */
   while( this->m_bullet_tick->ticked() )
   {
     this->update_bullet();
@@ -354,7 +470,6 @@ gamestate_t GameState::update( uint32_t p_delta )
   }
 
   /* And now we can derive the tick rate and limits from this, and move them. */
-  /* __RETURN__ need to base this on first/last columns. */
   this->m_invader_tick->set_frequency( 10 + (l_invader_count*7) );
   if ( this->m_invader_ltor )
   {
@@ -391,10 +506,11 @@ void GameState::draw( void )
   int32_t       l_width, l_height;
   uint8_t       l_alpha;
   uint32_t      l_invader1, l_invader2, l_invader3;
-  uint_fast8_t  l_row, l_column;
+  uint_fast8_t  l_row, l_column, l_index;
   int32_t       l_invader_x, l_invader_y;
   coord_t       l_invader_loc;
   int32_t       l_bullet;
+  char          l_buffer[32];
 
   /* Clear the screen every time... */
   picosystem::pen( 0, 0, 0 );
@@ -445,6 +561,14 @@ void GameState::draw( void )
           picosystem::sprite( l_invader3, l_invader_loc.x, l_invader_loc.y );
           picosystem::sprite( l_invader3+1, l_invader_loc.x+8, l_invader_loc.y );
           break;
+        case INVADER_BOOM1:
+          picosystem::sprite( SPRITE_BIG_BOOM, l_invader_loc.x, l_invader_loc.y );
+          picosystem::sprite( SPRITE_BIG_BOOM+1, l_invader_loc.x+8, l_invader_loc.y );
+          break;
+        case INVADER_BOOM2:
+          picosystem::sprite( SPRITE_BIG_BOOM_ALT, l_invader_loc.x, l_invader_loc.y );
+          picosystem::sprite( SPRITE_BIG_BOOM_ALT+1, l_invader_loc.x+8, l_invader_loc.y );
+          break;
       }
     }
   }
@@ -459,10 +583,34 @@ void GameState::draw( void )
     picosystem::sprite( l_bullet, this->m_player_bullet_loc.x, this->m_player_bullet_loc.y );
   }
 
-  /* DEBUG - superimpose the state name on the buffer. */
-#ifdef DEBUG
-//  this->ident( "GAME" );
-#endif
+  /* And any explosions. */
+  for ( l_index = 0; l_index < MAX_EXPLOSIONS; l_index++ )
+  {
+    /* Only handle active ones. */
+    if ( this->m_explosion_list[l_index].sprite == 0 )
+    {
+      continue;
+    }
+
+    /* And then draw it. */
+    picosystem::sprite( this->m_explosion_list[l_index].sprite, 
+                        this->m_explosion_list[l_index].x,
+                        this->m_explosion_list[l_index].y );
+    if ( this->m_explosion_list[l_index].wide )
+    {
+      picosystem::sprite( this->m_explosion_list[l_index].sprite+1, 
+                          this->m_explosion_list[l_index].x+8,
+                          this->m_explosion_list[l_index].y );
+    }
+  }
+
+  /* Lastly, draw the score line at the top of the screen. */
+  picosystem::pen( 15, 15, 15 );
+  snprintf( l_buffer, 30, "SCORE: %06d", this->m_score );
+  picosystem::measure( l_buffer, l_width, l_height );
+  picosystem::text( l_buffer, SCREEN_WIDTH - l_width - 20, 0 );
+  snprintf( l_buffer, 30, "HI: %06d", 0 );
+  picosystem::text( l_buffer, 20, 0 );
 
   /* All done. */
   return;

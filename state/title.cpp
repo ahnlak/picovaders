@@ -194,11 +194,6 @@ void TitleState::draw( void )
   picosystem::text( "github.com/ahnlak/picovaders", 
                     (SCREEN_WIDTH - l_width) / 2, SCREEN_HEIGHT - l_height );
 
-  /* DEBUG - superimpose the state name on the buffer. */
-#ifdef DEBUG
-  this->ident( "TITLE" );
-#endif
-
   /* All done. */
   return;
 }

@@ -26,7 +26,10 @@ typedef enum
   INVADER_NONE,
   INVADER1,
   INVADER2,
-  INVADER3
+  INVADER3,
+  INVADER_HIT,
+  INVADER_BOOM1,
+  INVADER_BOOM2,
 } invader_t;
 
 typedef enum
@@ -84,16 +87,6 @@ class GameStateInterface
 {
   protected:
     gamestate_t   m_state = GAMESTATE_MAX;
-
-    void                ident( const char *p_id )
-                        {
-                          int32_t w, h;
-                          picosystem::pen( 0, 0, 0 );
-                          picosystem::measure( p_id, w, h );
-                          picosystem::frect( 0, 0, w, h );
-                          picosystem::pen( 15, 15, 15 );
-                          picosystem::text( p_id, 0, 0 );
-                        }
 
   public:
     virtual gamestate_t update( uint32_t ) = 0;

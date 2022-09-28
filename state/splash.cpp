@@ -136,11 +136,6 @@ void SplashState::draw( void )
     }
   }
 
-  /* DEBUG - superimpose the state name on the buffer. */
-#ifdef DEBUG
-  this->ident( "SPLASH" );
-#endif
-
   /* All done. */
   return;
 }
